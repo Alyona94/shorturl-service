@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>URL Shortener</title>
+  </head>
+  <body>
+    <h1>URL Shortener</h1>
+
+    <h2>Сократить ссылку</h2>
+    <form id="shortenForm">
+      <label>
+        Full URL:
+        <input id="fullUrl" type="text" value="https://example.com" size="60" />
+      </label>
+      <button type="submit">Shorten</button>
+    </form>
+
+    <p>
+      short_id:
+      <input id="shortId" type="text" />
+    </p>
+
+    <p>
+      <button id="openShort" type="button">Open redirect (GET /{short_id})</button>
+      <button id="loadStats" type="button">Load stats (GET /stats/{short_id})</button>
+    </p>
+
+    <h3>Ответ</h3>
+    <pre id="output"></pre>
+
+    <script>
+      const API_BASE = "";
+
+      const shortenForm = document.getElementById("shortenForm");
+      const fullUrlInput = document.getElementById("fullUrl");
+      const shortIdInput = document.getElementById("shortId");
+      const output = document.getElementById("output");
+
+      const openShortBtn = document.getElementById("openShort");
+      const loadStatsBtn = document.getElementById("loadStats");
+
+      function show(obj) {
+        output.textContent =
+          typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
+      }
+
+      function getShortId() {
+        return (shortIdInput.value || "").trim();
+      }
+
+      shortenForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        show("Loading...");
+
+        const url = (fullUrlInput.value || "").trim();
+        if (!url) {
+          show("Введите полный URL");
+          return;
+        }
+
+        try {
+          const res = await fetch(`${API_BASE}/shorten`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url }),
+          });
+
+          const data = await res.json().catch(() => null);
+
+          if (!res.ok) {
+            show(data || { error: "Request failed", status: res.status });
+            return;
+          }
+
+          shortIdInput.value = data.short_id ?? "";
+          show(data);
+        } catch (err) {
+          show({ error: String(err) });
+        }
+      });
+
+      openShortBtn.addEventListener("click", () => {
+        const shortId = getShortId();
+        if (!shortId) {
+          show("Введите short_id");
+          return;
+        }
+        window.open(`${API_BASE}/${encodeURIComponent(shortId)}`, "_blank");
+      });
+
+      loadStatsBtn.addEventListener("click", async () => {
+        const shortId = getShortId();
+        if (!shortId) {
+          show("Введите short_id");
+          return;
+        }
+
+        show("Loading...");
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/stats/${encodeURIComponent(shortId)}`,
+            { method: "GET" }
+          );
+
+          const data = await res.json().catch(() => null);
+
+          if (!res.ok) {
+            show(data || { error: "Request failed", status: res.status });
+            return;
+          }
+
+          show(data);
+        } catch (err) {
+          show({ error: String(err) });
+        }
+      });
+    </script>
+  </body>
+</html>
